@@ -1,0 +1,20 @@
+#undef GLboolean
+#undef GLbyte
+#undef GLubyte
+#undef GLchar
+#undef GLshort
+#undef GLushort
+#undef GLint
+#undef GLuint
+#undef GLint64
+#undef GLuint64
+#undef GLsizei
+#undef GLenum
+#undef GLsizeiptr
+#undef GLsync
+#undef GLbitfield
+#undef GLfloat
+#undef GLclampf
+#undef GLdouble
+#undef GLclampd
+
