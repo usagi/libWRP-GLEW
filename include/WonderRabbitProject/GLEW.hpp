@@ -1,5 +1,6 @@
 #pragma once
 
+#include <functional>
 #include <memory>
 #include <thread>
 #include <mutex>
@@ -52,11 +53,76 @@ namespace WonderRabbitProject { namespace GLEW {
   template<GL::GLuint SHADER_TYPE>
   struct shader
   {
+    friend glew;
     static constexpr SHADER shader_type = SHADER(SHADER_TYPE);
-    //shader() : data_(glew::instance().create_shader(shader_type))
-    shader(GL::GLuint data) : data_(data) { }
+    using this_type = shader<SHADER_TYPE>;
+    
+    shader(const this_type&) = delete;
+    shader(this_type&& o)
+      : shader_(std::move(o.shader_))
+    { }
+    
+    this_type& operator=(const this_type&) = delete;
+    this_type& operator=(this_type&&)      = delete;
+
+    void cancel()
+    { finalizer_ = []{}; }
+    
+    void source(std::string&& v)
+    { source_ = std::move(v); }
+
+    const std::string& source() const
+    { return source_; }
+
+    void compile()
+    {
+      L(INFO, "WRP::GLEW::shader<" << to_string(shader_type) << ">::compile");
+      {
+        constexpr C::GLsizei  count = 1;
+        const     C::GLchar*  str   = source_.data();
+        const     C::GLint    size  = source_.size();
+        C::glShaderSource(shader_, count, &str, &size);
+        L(INFO, "glShaderSource done");
+      }
+      C::glCompileShader(shader_);
+      {
+        C::GLint result;
+        C::glGetShaderiv(shader_, GL_COMPILE_STATUS, &result);
+        if( ! result )
+        {
+          L(INFO, "glCompileShader fail");
+          std::string error_log;
+          C::GLint size;
+          C::glGetShaderiv(shader_, GL_INFO_LOG_LENGTH, &size);
+          error_log.resize(size);
+          auto error_log_data = const_cast<char*>(error_log.data());
+          C::glGetShaderInfoLog(shader_, result, nullptr, error_log_data);
+          L(ERROR, error_log_data);
+          throw std::runtime_error(error_log_data);
+        }
+      }
+      L(INFO, "glCompileShader done");
+    }
+
+    ~shader()
+    {
+      L(INFO, "WRP::GLEW::shader<" << to_string(shader_type) << ">::dtor");
+      L(INFO, "shader object = " << std::hex << shader_);
+      finalizer_();
+      L(INFO, "glDeleteShader done");
+    }
   private:
-    GL::GLuint data_;
+    shader()
+      : shader_(C::glCreateShader(GL::GLuint(shader_type)))
+      , finalizer_([this]{C::glDeleteShader(this->shader_);})
+    {
+      L(INFO, "WRP::GLEW::shader<" << to_string(shader_type) << ">::ctor");
+      L(INFO, "shader object = " << std::hex << shader_);
+    }
+    
+    GL::GLuint shader_;
+    std::function<void()> finalizer_;
+    std::string source_;
   };
 
   using vertex_shader          = shader<GL::GLuint(SHADER::VERTEX)>;
@@ -74,21 +140,19 @@ namespace WonderRabbitProject { namespace GLEW {
     this_type& operator=(const this_type&) = delete;
     this_type& operator=(this_type&&)      = delete;
     
-    template<GL::GLuint SHADER_TYPE>
-    shader<SHADER_TYPE> create_shader()
+    template<class TSHADER>
+    TSHADER create_shader() const
     {
       L(INFO
-      ,  "--> WRP::GLFW::glew::create_shader : "
-      << to_string(SHADER(SHADER_TYPE))
+      ,  "--> WRP::GLEW::glew::create_shader : "
+      << to_string(TSHADER::shader_type)
       );
-      return shader<SHADER_TYPE>(C::glCreateShader(GL::GLuint(SHADER_TYPE)));
+      return TSHADER();
     }
-    // clean if C++ support enum class in template params direct.
-    #define create_shader(a) create_shader<GL::GLuint(a)>()
-
+    
     static this_type& instance()
     {
-      L(INFO, "--> WRP::GLFW::glew::instance");
+      L(INFO, "--> WRP::GLEW::glew::instance");
       if ( ! i )
       {
         std::lock_guard<decltype(m)> g(m);
@@ -99,7 +163,7 @@ namespace WonderRabbitProject { namespace GLEW {
         }
       }
       L(INFO, "returning instance address is " << std::hex << i.get());
-      L(INFO, "<-- WRP::GLFW::glew::instance");
+      L(INFO, "<-- WRP::GLEW::glew::instance");
       return *i;
     }
     
@@ -109,14 +173,14 @@ namespace WonderRabbitProject { namespace GLEW {
 
     glew()
     {
-      L(INFO, "--> WRP::GLFW::glew::ctor");
+      L(INFO, "--> WRP::GLEW::glew::ctor");
       initialize();
-      L(INFO, "<-- WRP::GLFW::glew::ctor");
+      L(INFO, "<-- WRP::GLEW::glew::ctor");
     }
 
     void initialize()
     {
-      L(INFO, "--> WRP::GLFW::glew::initialize");
+      L(INFO, "--> WRP::GLEW::glew::initialize");
       auto r = C::glewInit();
       if (r != GLEW_OK)
       {
@@ -125,7 +189,7 @@ namespace WonderRabbitProject { namespace GLEW {
         throw std::runtime_error(message);
       }
       L(INFO, "glewInit done");
-      L(INFO, "<-- WRP::GLFW::glew::initialize");
+      L(INFO, "<-- WRP::GLEW::glew::initialize");
     }
 
   };
