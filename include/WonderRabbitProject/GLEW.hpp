@@ -69,7 +69,26 @@ namespace WonderRabbitProject { namespace GLEW {
     { finalizer_ = []{}; }
     
     void source(std::string&& v)
-    { source_ = std::move(v); }
+    {
+      L(INFO, "WRP::GLEW::shader<"
+        << to_string(shader_type)
+        << ">::source(std::string&&)"
+      );
+      source_ = std::move(v);
+    }
+
+    void source(std::istream&& s)
+    {
+      L(INFO, "WRP::GLEW::shader<"
+        << to_string(shader_type)
+        << ">::source(std::istream)"
+      );
+      s.seekg(0, std::ios::end);
+      auto size = s.tellg();
+      s.seekg(0, std::ios::beg);
+      source_.resize(size);
+      s.read(const_cast<char*>(source_.data()), size);
+    }
 
     const std::string& source() const
     { return source_; }
@@ -90,15 +109,19 @@ namespace WonderRabbitProject { namespace GLEW {
         C::glGetShaderiv(shader_, GL_COMPILE_STATUS, &result);
         if( ! result )
         {
-          L(INFO, "glCompileShader fail");
+          L(ERROR, "glCompileShader fail");
           std::string error_log;
           C::GLint size;
           C::glGetShaderiv(shader_, GL_INFO_LOG_LENGTH, &size);
           error_log.resize(size);
-          auto error_log_data = const_cast<char*>(error_log.data());
-          C::glGetShaderInfoLog(shader_, result, nullptr, error_log_data);
-          L(ERROR, error_log_data);
-          throw std::runtime_error(error_log_data);
+          C::GLint size_written;
+          C::glGetShaderInfoLog(
+            shader_, size, &size_written,
+            const_cast<char*>(error_log.data())
+          );
+          L(INFO, "error log written-size / size : " << size_written << " / " << size);
+          L(ERROR,"error log : " <<  error_log);
+          throw std::runtime_error(error_log);
         }
       }
       L(INFO, "glCompileShader done");
