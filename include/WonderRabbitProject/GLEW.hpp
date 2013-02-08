@@ -47,7 +47,8 @@ namespace WonderRabbitProject { namespace GLEW {
 
   #include "./GLEW/undef_OpenGL_types.hpp"
   #include "./GLEW/SHADER.hpp"
-  
+  #include "./GLEW/ERROR.hpp"
+
   struct glew;
   struct program;
 
@@ -114,16 +115,16 @@ namespace WonderRabbitProject { namespace GLEW {
       }
       C::glCompileShader(shader_);
       {
-        C::GLint result;
+        C::GLint result = false;
         C::glGetShaderiv(shader_, GL_COMPILE_STATUS, &result);
         if( ! result )
         {
           L(ERROR, "glCompileShader fail");
           std::string error_log;
-          C::GLint size;
+          C::GLint size = 0;
           C::glGetShaderiv(shader_, GL_INFO_LOG_LENGTH, &size);
           error_log.resize(size);
-          C::GLint size_written;
+          C::GLint size_written = 0;
           C::glGetShaderInfoLog(
             shader_, size, &size_written,
             const_cast<char*>(error_log.data())
@@ -186,10 +187,12 @@ namespace WonderRabbitProject { namespace GLEW {
     template<class T>
     inline void attach(const T& shader_) const
     {
-      L(INFO, "WRP::GLEW::program::attach; shader address is "
+      L(INFO, "WRP::GLEW::program::attach; shader"
+        << "[" << shader_.shader_ << "] address is "
         << std::hex << &shader_
       );
       C::glAttachShader(program_, shader_.shader_);
+      WRP_GLEW_TEST_ERROR
     }
     
     template<class T, class ... TS>
@@ -238,20 +241,59 @@ namespace WonderRabbitProject { namespace GLEW {
       L(INFO, "WRP::GLEW::program::link");
       
       C::glLinkProgram(program_);
-      C::GLint result;
-      C::glGetProgramiv(program_, GL_LINK_STATUS, &result);
-      if( ! result )
       {
-        auto message = "fail";
+        C::GLint result = false;
+        C::glGetProgramiv(program_, GL_LINK_STATUS, &result);
+        if( ! result )
+        {
+          L(ERROR, "glLinkProgram fail");
+          std::string error_log;
+          C::GLint size = 0;
+          C::glGetProgramiv(program_, GL_INFO_LOG_LENGTH, &size);
+          error_log.resize(size);
+          C::GLint size_written = 0;
+          C::glGetProgramInfoLog(
+            program_, size, &size_written,
+            const_cast<char*>(error_log.data())
+          );
+          L(INFO, "error log written-size / size : " << size_written << " / " << size);
+          L(ERROR,"error log : " <<  error_log);
+          throw std::runtime_error(error_log);
+        }
+        L(INFO, "succeed");
+      }
+    }
+    
+    inline GL::GLuint where_bind_vs(std::string&& s) const
+    {
+      auto r = C::glGetAttribLocation(program_, s.data());
+      if( r == -1 )
+      {
+        auto message = std::string("glGetAttribLocation(")
+          + std::to_string(program_) + "," + s + ") return " + std::to_string(r);
         L(ERROR, message);
         throw std::runtime_error(message);
       }
-      L(INFO, "succeed");
+      return r;
     }
-    
+
+    inline GL::GLuint where_bind_fs(std::string&& s) const
+    {
+      auto r = C::glGetFragDataLocation(program_, s.data());
+      if( r == -1 )
+      {
+        auto message = std::string("glGetFragDataLocation(")
+          + std::to_string(program_) + "," + s + ") return " + std::to_string(r);
+        L(ERROR, message);
+        throw std::runtime_error(message);
+      }
+      return r;
+    }
+
   private:
     program()
-      : finalizer_([this]{C::glDeleteProgram(this->program_);})
+      : program_(C::glCreateProgram())
+      , finalizer_([this]{C::glDeleteProgram(this->program_);})
     {
       L(INFO, "WRP::GLEW::program::ctor");
       L(INFO, "program object = " << std::hex << program_);
@@ -311,7 +353,10 @@ namespace WonderRabbitProject { namespace GLEW {
 
     void use_program(const program& p) const
     {
-      L(INFO, "--> WRP::GLEW::glew::use_program; program address is " << &p);
+      L(INFO,
+        "--> WRP::GLEW::glew::use_program; program"
+        "[" << p.program_ << "] (program object address is " << &p << ")"
+      );
       C::glUseProgram(p.program_);
     }
 
