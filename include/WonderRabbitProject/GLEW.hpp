@@ -6,6 +6,11 @@
 #include <mutex>
 #include <iostream>
 
+#include <boost/type_traits.hpp>
+#include <boost/mpl/map.hpp>
+//#include <boost/mpl/filter_view.hpp>
+#include <boost/mpl/find_if.hpp>
+
 #ifndef WRP_NOT_DEFINE_L
   #ifndef L
     #define L(a,b) 
@@ -350,8 +355,33 @@ namespace WonderRabbitProject { namespace GLEW {
     using data_type = std::vector<std::array<element_type ,element_size>>;
     static constexpr USAGE usage = USAGE(TUSAGE);
   private:
+    using va_candidates = boost::mpl::map
+    < boost::mpl::pair< GL::GLfloat , boost::mpl::int_<GL::GLenum(VERTEX_ATTRIBUTE::BINARY32)> >
+    , boost::mpl::pair< GL::GLdouble, boost::mpl::int_<GL::GLenum(VERTEX_ATTRIBUTE::BINARY64)> > 
+    , boost::mpl::pair< GL::GLbyte  , boost::mpl::int_<GL::GLenum(VERTEX_ATTRIBUTE::INT8    )> > 
+    , boost::mpl::pair< GL::GLubyte , boost::mpl::int_<GL::GLenum(VERTEX_ATTRIBUTE::UINT8   )> > 
+    , boost::mpl::pair< GL::GLshort , boost::mpl::int_<GL::GLenum(VERTEX_ATTRIBUTE::INT16   )> > 
+    , boost::mpl::pair< GL::GLushort, boost::mpl::int_<GL::GLenum(VERTEX_ATTRIBUTE::UINT16  )> > 
+    , boost::mpl::pair< GL::GLint   , boost::mpl::int_<GL::GLenum(VERTEX_ATTRIBUTE::INT32   )> > 
+    , boost::mpl::pair< GL::GLuint  , boost::mpl::int_<GL::GLenum(VERTEX_ATTRIBUTE::UINT32  )> > 
+    >;
+
+    using mpl_va_type = 
+      typename boost::mpl::second<
+        typename boost::mpl::deref<
+          typename boost::mpl::find_if<
+            va_candidates,
+            boost::is_same< element_type, boost::mpl::first<boost::mpl::_> >
+          >::type
+        >::type
+      >::type;
+  public:
+      static constexpr VERTEX_ATTRIBUTE vertex_attribute
+        = VERTEX_ATTRIBUTE(mpl_va_type::value);
+  private:
     GL::GLuint vertex_array;
     GL::GLuint vertices;
+
     model_v(data_type&& data)
     {
       vertices = data.size();
@@ -367,9 +397,7 @@ namespace WonderRabbitProject { namespace GLEW {
         GL::GLenum(usage)
       );
       C::glVertexAttribPointer(
-        0, element_size,
-        GL::GLenum(VERTEX_ATTRIBUTE::FLOAT),
-        false, 0, 0
+        0, element_size, GL::GLenum(vertex_attribute), false, 0, 0
       );
       C::glEnableVertexAttribArray(0);
       C::glBindBuffer(GL_ARRAY_BUFFER, 0);
