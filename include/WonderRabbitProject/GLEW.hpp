@@ -55,6 +55,7 @@ namespace WonderRabbitProject { namespace GLEW {
   #include "./GLEW/ERROR.hpp"
   #include "./GLEW/VERTEX_ATTRIBUTE.hpp"
   #include "./GLEW/USAGE.hpp"
+  #include "./GLEW/MODE.hpp"
 
   struct glew;
   struct program;
@@ -345,7 +346,8 @@ namespace WonderRabbitProject { namespace GLEW {
   <
     class TELEMENT,
     size_t TELEMENT_SIZE,
-    GL::GLenum TUSAGE = GL::GLenum(USAGE::STATIC_DRAW)
+    class TUSAGE,
+    class TDEFAULT_INVOKE_MODE
   >
   struct model_v final : model
   {
@@ -353,7 +355,8 @@ namespace WonderRabbitProject { namespace GLEW {
     using element_type = TELEMENT;
     static constexpr size_t element_size = TELEMENT_SIZE;
     using data_type = std::vector<std::array<element_type ,element_size>>;
-    static constexpr USAGE usage = USAGE(TUSAGE);
+    static constexpr USAGE usage = USAGE(TUSAGE::value);
+    static constexpr MODE default_invoke_mode = TDEFAULT_INVOKE_MODE::value;
   private:
     using va_candidates = boost::mpl::map
     < boost::mpl::pair< GL::GLfloat , boost::mpl::int_<GL::GLenum(VERTEX_ATTRIBUTE::BINARY32)> >
@@ -376,17 +379,23 @@ namespace WonderRabbitProject { namespace GLEW {
         >::type
       >::type;
   public:
-      static constexpr VERTEX_ATTRIBUTE vertex_attribute
-        = VERTEX_ATTRIBUTE(mpl_va_type::value);
+    static constexpr VERTEX_ATTRIBUTE vertex_attribute
+      = VERTEX_ATTRIBUTE(mpl_va_type::value);
+      
+    ~model_v() override
+    {
+      C::glDeleteVertexArrays(1, &vertex_arrays);
+    }
+
   private:
-    GL::GLuint vertex_array;
+    GL::GLuint vertex_arrays;
     GL::GLuint vertices;
 
     model_v(data_type&& data)
     {
       vertices = data.size();
-      C::glGenVertexArrays(1, &vertex_array);
-      C::glBindVertexArray(vertex_array);
+      C::glGenVertexArrays(1, &vertex_arrays);
+      C::glBindVertexArray(vertex_arrays);
       GL::GLuint vertex_buffer;
       C::glGenBuffers(1, &vertex_buffer);
       C::glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
@@ -403,10 +412,18 @@ namespace WonderRabbitProject { namespace GLEW {
       C::glBindBuffer(GL_ARRAY_BUFFER, 0);
       C::glBindVertexArray(0);
     }
+    
+    template<class TMODE>
     void invoke() const override
     {
-      C::glBindVertexArray(vertex_array);
-      C::glDrawArrays(GL_LINE_LOOP, 0, vertices);
+      C::glBindVertexArray(vertex_arrays);
+      C::glDrawArrays(GL::GLenum(TMODE::value), 0, vertices);
+    }
+    
+    void invoke() const override
+    {
+      C::glBindVertexArray(vertex_arrays);
+      C::glDrawArrays(GL::GLenum(default_invoke_mode), 0, vertices);
     }
   };
 
@@ -445,13 +462,41 @@ namespace WonderRabbitProject { namespace GLEW {
       return program();
     }
 
-    template<class TELEMENT_TYPE, size_t TELEMENT_SIZE>
-    inline model_v<TELEMENT_TYPE, TELEMENT_SIZE> create_model(
+    template
+    <
+      class TELEMENT_TYPE,
+      size_t TELEMENT_SIZE,
+      class TUSAGE,
+      class TDEFAULT_INVOKE_MODE
+    >
+    inline model_v
+    <
+      TELEMENT_TYPE, TELEMENT_SIZE, TUSAGE, TDEFAULT_INVOKE_MODE
+    >
+    create_model(
       std::vector<std::array<TELEMENT_TYPE, TELEMENT_SIZE>>&& data
     ) const
     {
       L(INFO,  "--> WRP::GLEW::glew::create_model");
-      return model_v<TELEMENT_TYPE, TELEMENT_SIZE>(std::move(data));
+      return model_v
+        <TELEMENT_TYPE, TELEMENT_SIZE, TUSAGE, TDEFAULT_INVOKE_MODE>
+        (std::move(data));
+    }
+
+    template < class TELEMENT_TYPE, size_t TELEMENT_SIZE, class TUSAGE>
+    inline model_v< TELEMENT_TYPE, TELEMENT_SIZE, TUSAGE, mode_points >
+    create_model( std::vector<std::array<TELEMENT_TYPE, TELEMENT_SIZE>>&& data) const
+    {
+      return create_model
+        <TELEMENT_TYPE, TELEMENT_SIZE, TUSAGE, mode_points>(std::move(data));
+    }
+
+    template < class TELEMENT_TYPE, size_t TELEMENT_SIZE>
+    inline model_v< TELEMENT_TYPE, TELEMENT_SIZE, usage_static_draw, mode_points >
+    create_model( std::vector<std::array<TELEMENT_TYPE, TELEMENT_SIZE>>&& data) const
+    {
+      return create_model
+        <TELEMENT_TYPE, TELEMENT_SIZE, usage_static_draw>(std::move(data));
     }
 
     inline void use_program(const program& p) const
@@ -464,8 +509,14 @@ namespace WonderRabbitProject { namespace GLEW {
       WRP_GLEW_TEST_ERROR
     }
 
-    inline void invoke(const model& m) const
+    template<class TMODE, class TMODEL>
+    inline void invoke(const TMODEL& m) const
     {
+      m.invoke<TMODE>();
+    }
+
+    inline void invoke(const model& m) const
+    { 
       m.invoke();
     }
 

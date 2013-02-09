@@ -10,15 +10,15 @@ enum class USAGE : GL::GLenum
 , DYNAMIC_COPY = GL_DYNAMIC_COPY
 };
 
-#undef STREAM_DRAW
-#undef STREAM_READ
-#undef STREAM_COPY
-#undef STATIC_DRAW
-#undef STATIC_READ
-#undef STATIC_COPY
-#undef DYNAMIC_DRAW
-#undef DYNAMIC_RAED
-#undef DYNAMIC_COPY
+#undef GL_STREAM_DRAW
+#undef GL_STREAM_READ
+#undef GL_STREAM_COPY
+#undef GL_STATIC_DRAW
+#undef GL_STATIC_READ
+#undef GL_STATIC_COPY
+#undef GL_DYNAMIC_DRAW
+#undef GL_DYNAMIC_RAED
+#undef GL_DYNAMIC_COPY
 
 std::string to_string(USAGE v){
   switch(v){
@@ -34,4 +34,19 @@ std::string to_string(USAGE v){
   default                  : return "";
   }
 }
+
+template<GL::GLenum TVALUE>
+struct usage { static constexpr USAGE value = USAGE(TVALUE); };
+
+#define WRP_TMP(a, b) using usage_ ## a = usage<GL::GLenum(USAGE:: b )>;
+WRP_TMP(stream_draw, STREAM_DRAW);
+WRP_TMP(stream_read, STREAM_READ);
+WRP_TMP(stream_copy, STREAM_COPY);
+WRP_TMP(static_draw, STATIC_DRAW);
+WRP_TMP(static_read, STATIC_READ);
+WRP_TMP(static_copy, STATIC_COPY);
+WRP_TMP(dynamic_draw, DYNAMIC_DRAW);
+WRP_TMP(dynamic_read, DYNAMIC_READ);
+WRP_TMP(dynamic_copy, DYNAMIC_COPY);
+#undef WRP_TMP
 
