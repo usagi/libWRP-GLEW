@@ -48,7 +48,7 @@ namespace WonderRabbitProject { namespace GLEW {
   #include "./GLEW/undef_OpenGL_types.hpp"
   #include "./GLEW/SHADER.hpp"
   #include "./GLEW/ERROR.hpp"
-  #include "./GLEW/COLOR_POINTER_TYPE.hpp"
+  #include "./GLEW/VERTEX_ATTRIBUTE.hpp"
   #include "./GLEW/USAGE.hpp"
 
   struct glew;
@@ -368,7 +368,7 @@ namespace WonderRabbitProject { namespace GLEW {
       );
       C::glVertexAttribPointer(
         0, element_size,
-        GL::GLenum(COLOR_POINTER_TYPE::FLOAT),
+        GL::GLenum(VERTEX_ATTRIBUTE::FLOAT),
         false, 0, 0
       );
       C::glEnableVertexAttribArray(0);
