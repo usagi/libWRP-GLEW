@@ -1,0 +1,37 @@
+enum class USAGE : GL::GLenum
+{ STREAM_DRAW  = GL_STREAM_DRAW
+, STREAM_READ  = GL_STREAM_READ
+, STREAM_COPY  = GL_STREAM_COPY
+, STATIC_DRAW  = GL_STATIC_DRAW
+, STATIC_READ  = GL_STATIC_READ
+, STATIC_COPY  = GL_STATIC_COPY
+, DYNAMIC_DRAW = GL_DYNAMIC_DRAW
+, DYNAMIC_READ = GL_DYNAMIC_READ
+, DYNAMIC_COPY = GL_DYNAMIC_COPY
+};
+
+#undef STREAM_DRAW
+#undef STREAM_READ
+#undef STREAM_COPY
+#undef STATIC_DRAW
+#undef STATIC_READ
+#undef STATIC_COPY
+#undef DYNAMIC_DRAW
+#undef DYNAMIC_RAED
+#undef DYNAMIC_COPY
+
+std::string to_string(USAGE v){
+  switch(v){
+  case USAGE::STREAM_DRAW  : return "STREAM_DRAW";
+  case USAGE::STREAM_READ  : return "STREAM_READ";
+  case USAGE::STREAM_COPY  : return "STREAM_COPY";
+  case USAGE::STATIC_DRAW  : return "STATIC_DRAW";
+  case USAGE::STATIC_READ  : return "STATIC_READ";
+  case USAGE::STATIC_COPY  : return "STATIC_COPY";
+  case USAGE::DYNAMIC_DRAW : return "DYNAMIC_DRAW";
+  case USAGE::DYNAMIC_READ : return "DYNAMIC_READ";
+  case USAGE::DYNAMIC_COPY : return "DYNAMIC_COPY";
+  default                  : return "";
+  }
+}
+

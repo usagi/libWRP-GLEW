@@ -48,6 +48,8 @@ namespace WonderRabbitProject { namespace GLEW {
   #include "./GLEW/undef_OpenGL_types.hpp"
   #include "./GLEW/SHADER.hpp"
   #include "./GLEW/ERROR.hpp"
+  #include "./GLEW/COLOR_POINTER_TYPE.hpp"
+  #include "./GLEW/USAGE.hpp"
 
   struct glew;
   struct program;
@@ -326,6 +328,70 @@ namespace WonderRabbitProject { namespace GLEW {
     
   };
 
+  struct model
+  {
+    friend glew;
+    virtual ~model() { }
+  protected:
+    virtual void invoke() const = 0;
+  };
+
+  template
+  <
+    class TELEMENT,
+    size_t TELEMENT_SIZE,
+    GL::GLenum TUSAGE = GL::GLenum(USAGE::STATIC_DRAW)
+  >
+  struct model_v final : model
+  {
+    friend glew;
+    using element_type = TELEMENT;
+    static constexpr size_t element_size = TELEMENT_SIZE;
+    using data_type = std::vector<std::array<element_type ,element_size>>;
+    static constexpr USAGE usage = USAGE(TUSAGE);
+  private:
+    GL::GLuint vertex_array;
+    GL::GLuint vertices;
+    model_v(data_type&& data)
+    {
+      vertices = data.size();
+      C::glGenVertexArrays(1, &vertex_array);
+      C::glBindVertexArray(vertex_array);
+      GL::GLuint vertex_buffer;
+      C::glGenBuffers(1, &vertex_buffer);
+      C::glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
+      C::glBufferData(
+        GL_ARRAY_BUFFER,
+        sizeof(element_type) * element_size * vertices,
+        data.data(),
+        GL::GLenum(usage)
+      );
+      C::glVertexAttribPointer(
+        0, element_size,
+        GL::GLenum(COLOR_POINTER_TYPE::FLOAT),
+        false, 0, 0
+      );
+      C::glEnableVertexAttribArray(0);
+      C::glBindBuffer(GL_ARRAY_BUFFER, 0);
+      C::glBindVertexArray(0);
+    }
+    void invoke() const override
+    {
+      C::glBindVertexArray(vertex_array);
+      C::glDrawArrays(GL_LINE_LOOP, 0, vertices);
+    }
+  };
+
+  struct model_vi final : model
+  {
+    friend glew;
+  private:
+    model_vi(){}
+    void invoke() const override
+    {
+    }
+  };
+
   struct glew final
   {
     using this_type = glew;
@@ -336,7 +402,7 @@ namespace WonderRabbitProject { namespace GLEW {
     this_type& operator=(this_type&&)      = delete;
     
     template<class TSHADER>
-    TSHADER create_shader() const
+    inline TSHADER create_shader() const
     {
       L(INFO
       ,  "--> WRP::GLEW::glew::create_shader : "
@@ -345,19 +411,34 @@ namespace WonderRabbitProject { namespace GLEW {
       return TSHADER();
     }
     
-    program create_program() const
+    inline program create_program() const
     {
       L(INFO,  "--> WRP::GLEW::glew::create_program");
       return program();
     }
 
-    void use_program(const program& p) const
+    template<class TELEMENT_TYPE, size_t TELEMENT_SIZE>
+    inline model_v<TELEMENT_TYPE, TELEMENT_SIZE> create_model(
+      std::vector<std::array<TELEMENT_TYPE, TELEMENT_SIZE>>&& data
+    ) const
+    {
+      L(INFO,  "--> WRP::GLEW::glew::create_model");
+      return model_v<TELEMENT_TYPE, TELEMENT_SIZE>(std::move(data));
+    }
+
+    inline void use_program(const program& p) const
     {
       L(INFO,
         "--> WRP::GLEW::glew::use_program; program"
         "[" << p.program_ << "] (program object address is " << &p << ")"
       );
       C::glUseProgram(p.program_);
+      WRP_GLEW_TEST_ERROR
+    }
+
+    inline void invoke(const model& m) const
+    {
+      m.invoke();
     }
 
     static this_type& instance()
