@@ -1,5 +1,7 @@
 #pragma once
 
+#include <array>
+#include <vector>
 #include <functional>
 #include <memory>
 #include <thread>
@@ -427,16 +429,111 @@ namespace WonderRabbitProject { namespace GLEW {
     }
   };
 
+  template
+  <
+    class TELEMENT,
+    size_t TELEMENT_SIZE,
+    class TUSAGE,
+    class TDEFAULT_INVOKE_MODE
+  >
   struct model_vi final : model
   {
     friend glew;
+    using element_type = TELEMENT;
+    static constexpr size_t element_size = TELEMENT_SIZE;
+    using data_vertices_type = std::vector<std::array<element_type ,element_size>>;
+    static constexpr USAGE usage = USAGE(TUSAGE::value);
+    static constexpr MODE default_invoke_mode = TDEFAULT_INVOKE_MODE::value;
+    using data_indices_element_type = GL::GLuint;
+    static constexpr size_t data_indices_element_size = 2;
+    using data_indices_type
+      = std::vector<std::array<data_indices_element_type, data_indices_element_size>>;
   private:
-    model_vi(){}
+    using va_candidates = boost::mpl::map
+    < boost::mpl::pair< GL::GLfloat , boost::mpl::int_<GL::GLenum(VERTEX_ATTRIBUTE::BINARY32)> >
+    , boost::mpl::pair< GL::GLdouble, boost::mpl::int_<GL::GLenum(VERTEX_ATTRIBUTE::BINARY64)> > 
+    , boost::mpl::pair< GL::GLbyte  , boost::mpl::int_<GL::GLenum(VERTEX_ATTRIBUTE::INT8    )> > 
+    , boost::mpl::pair< GL::GLubyte , boost::mpl::int_<GL::GLenum(VERTEX_ATTRIBUTE::UINT8   )> > 
+    , boost::mpl::pair< GL::GLshort , boost::mpl::int_<GL::GLenum(VERTEX_ATTRIBUTE::INT16   )> > 
+    , boost::mpl::pair< GL::GLushort, boost::mpl::int_<GL::GLenum(VERTEX_ATTRIBUTE::UINT16  )> > 
+    , boost::mpl::pair< GL::GLint   , boost::mpl::int_<GL::GLenum(VERTEX_ATTRIBUTE::INT32   )> > 
+    , boost::mpl::pair< GL::GLuint  , boost::mpl::int_<GL::GLenum(VERTEX_ATTRIBUTE::UINT32  )> > 
+    >;
+
+    using mpl_va_type = 
+      typename boost::mpl::second<
+        typename boost::mpl::deref<
+          typename boost::mpl::find_if<
+            va_candidates,
+            boost::is_same< element_type, boost::mpl::first<boost::mpl::_> >
+          >::type
+        >::type
+      >::type;
+  public:
+    static constexpr VERTEX_ATTRIBUTE vertex_attribute
+      = VERTEX_ATTRIBUTE(mpl_va_type::value);
+      
+    ~model_vi() override
+    {
+      //C::glDeleteVertexArrays(1, &vertex_arrays);
+    }
+
+  private:
+    //std::array<GL::GLuint, 2> vertex_arrays;
+    GL::GLuint vertices, indices;
+
+    model_vi(data_vertices_type&& data_vertices, data_indices_type&& data_indices)
+    {
+      vertices = data_vertices.size();
+      indices  = data_indices.size();
+      //C::glGenVertexArrays(2, vertex_arrays.data());
+      //C::glBindVertexArray(vertex_arrays[0]);
+      std::array<GL::GLuint, 2> vi_buffer;
+      const auto& vertex_buffer = vi_buffer[0];
+      const auto& index_buffer  = vi_buffer[1];
+      C::glGenBuffers(2, vi_buffer.data());
+      C::glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
+      C::glBufferData(
+        GL_ARRAY_BUFFER,
+        sizeof(element_type) * element_size * vertices,
+        data_vertices.data(),
+        GL::GLenum(usage)
+      );
+      C::glBindBuffer(GL_ARRAY_BUFFER, index_buffer);
+      C::glBufferData(
+        GL_ARRAY_BUFFER,
+        sizeof(data_indices_element_type) * data_indices_element_size * indices,
+        data_indices.data(),
+        GL::GLenum(usage)
+      );
+      //C::glVertexAttribPointer(
+      //  0, element_size, GL::GLenum(vertex_attribute), false, 0, 0
+      //);
+      //C::glEnableVertexAttribArray(0);
+      C::glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+      //C::glBindVertexArray(0);
+      C::glBindBuffer(GL_ARRAY_BUFFER, 0);
+    }
+    
+    template<class TMODE>
     void invoke() const override
     {
+      //C::glBindVertexArray(vertex_arrays);
+      //C::glDrawArrays(GL::GLenum(TMODE::value), 0, vertices);
+    }
+    
+    void invoke() const override
+    {
+      //C::glBindVertexArray(vertex_arrays);
+      C::glDrawElements(
+        GL::GLenum(default_invoke_mode),
+        vertices,
+        GL::GLenum(VERTEX_ATTRIBUTE::UINT32),
+        0//vertices
+      );
     }
   };
-
+  
   struct glew final
   {
     using this_type = glew;
@@ -462,6 +559,52 @@ namespace WonderRabbitProject { namespace GLEW {
       return program();
     }
 
+    template
+    <
+      class TELEMENT_TYPE,
+      size_t TELEMENT_SIZE,
+      class TUSAGE,
+      class TDEFAULT_INVOKE_MODE
+    >
+    inline model_vi
+    <
+      TELEMENT_TYPE, TELEMENT_SIZE, TUSAGE, TDEFAULT_INVOKE_MODE
+    >
+    create_model(
+      std::vector<std::array<TELEMENT_TYPE, TELEMENT_SIZE>>&& data_vertices,
+      std::vector<std::array<GL::GLuint, 2>>&& data_indices
+    ) const
+    {
+      L(INFO,  "--> WRP::GLEW::glew::create_model(vertices,indices)");
+      return model_vi
+        <TELEMENT_TYPE, TELEMENT_SIZE, TUSAGE, TDEFAULT_INVOKE_MODE>
+        ( std::move(data_vertices), std::move(data_indices) );
+    }
+    
+    template < class TELEMENT_TYPE, size_t TELEMENT_SIZE, class TUSAGE>
+    inline model_vi< TELEMENT_TYPE, TELEMENT_SIZE, TUSAGE, mode_points >
+    create_model(
+      std::vector<std::array<TELEMENT_TYPE, TELEMENT_SIZE>>&& data_vertices,
+      std::vector<std::array<GL::GLuint, 2>>&& data_indices
+    ) const
+    {
+      return create_model
+        <TELEMENT_TYPE, TELEMENT_SIZE, TUSAGE, mode_points>
+        (std::move(data_vertices), std::move(data_indices));
+    }
+
+    template < class TELEMENT_TYPE, size_t TELEMENT_SIZE>
+    inline model_vi< TELEMENT_TYPE, TELEMENT_SIZE, usage_static_draw, mode_points >
+    create_model(
+      std::vector<std::array<TELEMENT_TYPE, TELEMENT_SIZE>>&& data_vertices,
+      std::vector<std::array<GL::GLuint, 2>>&& data_indices
+    ) const
+    {
+      return create_model
+        <TELEMENT_TYPE, TELEMENT_SIZE, usage_static_draw>
+        (std::move(data_vertices), std::move(data_indices));
+    }
+    
     template
     <
       class TELEMENT_TYPE,
