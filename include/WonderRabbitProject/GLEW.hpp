@@ -1,7 +1,9 @@
 #pragma once
 
+#include <stack>
 #include <array>
 #include <vector>
+#include <algorithm>
 #include <functional>
 #include <memory>
 #include <thread>
@@ -58,6 +60,20 @@ namespace WonderRabbitProject { namespace GLEW {
   #include "./GLEW/VERTEX_ATTRIBUTE.hpp"
   #include "./GLEW/USAGE.hpp"
   #include "./GLEW/MODE.hpp"
+
+  struct destruct_invoker
+  {
+    destruct_invoker(std::function<void()>&& f_)
+      : f(std::move(f_))
+    { }
+    destruct_invoker(const destruct_invoker&) = delete;
+    destruct_invoker(destruct_invoker&& t)
+      : destruct_invoker(std::move(t.f))
+    { t.cancel(); }
+    ~destruct_invoker(){ f(); }
+    inline void cancel(){ f = []{}; }
+    std::function<void()> f;
+  };
 
   struct glew;
   struct program;
@@ -386,20 +402,22 @@ namespace WonderRabbitProject { namespace GLEW {
       
     ~model_v() override
     {
-      C::glDeleteVertexArrays(1, &vertex_arrays);
+      C::glDeleteBuffers(buffer_count, &vertex_buffer);
+      C::glDeleteVertexArrays(buffer_count, &vertex_arrays);
     }
 
   private:
+    static constexpr size_t buffer_count = 1;
+    GL::GLuint vertex_buffer;
     GL::GLuint vertex_arrays;
     GL::GLuint vertices;
 
     model_v(data_type&& data)
     {
       vertices = data.size();
-      C::glGenVertexArrays(1, &vertex_arrays);
+      C::glGenVertexArrays(buffer_count, &vertex_arrays);
       C::glBindVertexArray(vertex_arrays);
-      GL::GLuint vertex_buffer;
-      C::glGenBuffers(1, &vertex_buffer);
+      C::glGenBuffers(buffer_count, &vertex_buffer);
       C::glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
       C::glBufferData(
         GL_ARRAY_BUFFER,
@@ -410,7 +428,6 @@ namespace WonderRabbitProject { namespace GLEW {
       C::glVertexAttribPointer(
         0, element_size, GL::GLenum(vertex_attribute), false, 0, 0
       );
-      C::glEnableVertexAttribArray(0);
       C::glBindBuffer(GL_ARRAY_BUFFER, 0);
       C::glBindVertexArray(0);
     }
@@ -419,14 +436,14 @@ namespace WonderRabbitProject { namespace GLEW {
     void invoke() const override
     {
       C::glBindVertexArray(vertex_arrays);
+      C::glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
       C::glDrawArrays(GL::GLenum(TMODE::value), 0, vertices);
+      C::glBindBuffer(GL_ARRAY_BUFFER, 0);
+      //C::glBindVertexArray(0);
     }
     
     void invoke() const override
-    {
-      C::glBindVertexArray(vertex_arrays);
-      C::glDrawArrays(GL::GLenum(default_invoke_mode), 0, vertices);
-    }
+    { invoke<TDEFAULT_INVOKE_MODE>(); }
   };
 
   template
@@ -445,9 +462,8 @@ namespace WonderRabbitProject { namespace GLEW {
     static constexpr USAGE usage = USAGE(TUSAGE::value);
     static constexpr MODE default_invoke_mode = TDEFAULT_INVOKE_MODE::value;
     using data_indices_element_type = GL::GLuint;
-    static constexpr size_t data_indices_element_size = 2;
     using data_indices_type
-      = std::vector<std::array<data_indices_element_type, data_indices_element_size>>;
+      = std::vector<data_indices_element_type>;
   private:
     using va_candidates = boost::mpl::map
     < boost::mpl::pair< GL::GLfloat , boost::mpl::int_<GL::GLenum(VERTEX_ATTRIBUTE::BINARY32)> >
@@ -475,63 +491,66 @@ namespace WonderRabbitProject { namespace GLEW {
       
     ~model_vi() override
     {
-      //C::glDeleteVertexArrays(1, &vertex_arrays);
+      C::glDeleteBuffers(buffer_count, buffer.data());
     }
 
   private:
-    //std::array<GL::GLuint, 2> vertex_arrays;
-    GL::GLuint vertices, indices;
+    static constexpr size_t buffer_count = 2;
+    static constexpr size_t vertex_buffer_id = 0;
+    static constexpr size_t index_buffer_id  = vertex_buffer_id + 1;
+    std::array<GL::GLuint, buffer_count> buffer;
+    GL::GLuint
+      num_of_vertices,
+      num_of_indices;
+    
+    const GL::GLuint& vertex_buffer() const { return buffer[vertex_buffer_id]; }
+    const GL::GLuint& index_buffer() const { return buffer[index_buffer_id]; }
 
     model_vi(data_vertices_type&& data_vertices, data_indices_type&& data_indices)
     {
-      vertices = data_vertices.size();
-      indices  = data_indices.size();
-      //C::glGenVertexArrays(2, vertex_arrays.data());
-      //C::glBindVertexArray(vertex_arrays[0]);
-      std::array<GL::GLuint, 2> vi_buffer;
-      const auto& vertex_buffer = vi_buffer[0];
-      const auto& index_buffer  = vi_buffer[1];
-      C::glGenBuffers(2, vi_buffer.data());
-      C::glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
+      num_of_vertices = data_vertices.size();
+      num_of_indices  = data_indices.size();
+      C::glGenBuffers(buffer_count, buffer.data());
+      C::glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer());
       C::glBufferData(
         GL_ARRAY_BUFFER,
-        sizeof(element_type) * element_size * vertices,
+        sizeof(element_type) * element_size * num_of_vertices,
         data_vertices.data(),
         GL::GLenum(usage)
       );
-      C::glBindBuffer(GL_ARRAY_BUFFER, index_buffer);
+      C::glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, index_buffer());
+      L(INFO, "AAA");
       C::glBufferData(
-        GL_ARRAY_BUFFER,
-        sizeof(data_indices_element_type) * data_indices_element_size * indices,
+        GL_ELEMENT_ARRAY_BUFFER,
+        sizeof(data_indices_element_type) * num_of_indices,
         data_indices.data(),
         GL::GLenum(usage)
-      );
-      //C::glVertexAttribPointer(
-      //  0, element_size, GL::GLenum(vertex_attribute), false, 0, 0
-      //);
-      //C::glEnableVertexAttribArray(0);
+      ); 
+      L(INFO, "BBB");
       C::glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-      //C::glBindVertexArray(0);
       C::glBindBuffer(GL_ARRAY_BUFFER, 0);
     }
     
     template<class TMODE>
     void invoke() const override
     {
-      //C::glBindVertexArray(vertex_arrays);
-      //C::glDrawArrays(GL::GLenum(TMODE::value), 0, vertices);
+      C::glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer());
+      C::glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, index_buffer());
+      C::glVertexAttribPointer(
+        0, element_size, GL::GLenum(vertex_attribute), false, 0, 0
+      );
+      C::glDrawElements(
+        GL::GLenum(TMODE::value),
+        num_of_indices,
+        GL::GLenum(VERTEX_ATTRIBUTE::UINT32),
+        0
+      );
+      C::glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+      C::glBindBuffer(GL_ARRAY_BUFFER, 0);
     }
     
     void invoke() const override
-    {
-      //C::glBindVertexArray(vertex_arrays);
-      C::glDrawElements(
-        GL::GLenum(default_invoke_mode),
-        vertices,
-        GL::GLenum(VERTEX_ATTRIBUTE::UINT32),
-        0//vertices
-      );
-    }
+    { invoke<TDEFAULT_INVOKE_MODE>(); }
   };
   
   struct glew final
@@ -572,7 +591,7 @@ namespace WonderRabbitProject { namespace GLEW {
     >
     create_model(
       std::vector<std::array<TELEMENT_TYPE, TELEMENT_SIZE>>&& data_vertices,
-      std::vector<std::array<GL::GLuint, 2>>&& data_indices
+      std::vector<GL::GLuint>&& data_indices
     ) const
     {
       L(INFO,  "--> WRP::GLEW::glew::create_model(vertices,indices)");
@@ -626,6 +645,31 @@ namespace WonderRabbitProject { namespace GLEW {
         (std::move(data));
     }
 
+    inline destruct_invoker
+    enable_vertex_attribute(GL::GLuint v)
+    {
+      std::vector<GL::GLuint> list;
+      list.emplace_back(v);
+      return enable_vertex_attributes(std::move(list));
+    }
+
+    inline destruct_invoker
+    enable_vertex_attributes(std::vector<GL::GLuint>&& list)
+    {
+      for(const auto& n : list)
+        C::glEnableVertexAttribArray(n);
+      return
+      {
+        [list]()
+        {
+          std::for_each(
+            list.crbegin(), list.crend(),
+            [](GL::GLuint n){ C::glDisableVertexAttribArray(n); }
+          );
+        }
+      };
+    }
+
     template < class TELEMENT_TYPE, size_t TELEMENT_SIZE, class TUSAGE>
     inline model_v< TELEMENT_TYPE, TELEMENT_SIZE, TUSAGE, mode_points >
     create_model( std::vector<std::array<TELEMENT_TYPE, TELEMENT_SIZE>>&& data) const
@@ -662,6 +706,12 @@ namespace WonderRabbitProject { namespace GLEW {
     { 
       m.invoke();
     }
+
+    inline void flush() const
+    { C::glFlush(); }
+
+    inline destruct_invoker flusher() const
+    { return { [this]{ this->flush(); } }; }
 
     static this_type& instance()
     {
