@@ -425,9 +425,6 @@ namespace WonderRabbitProject { namespace GLEW {
         data.data(),
         GL::GLenum(usage)
       );
-      C::glVertexAttribPointer(
-        0, element_size, GL::GLenum(vertex_attribute), false, 0, 0
-      );
       C::glBindBuffer(GL_ARRAY_BUFFER, 0);
       C::glBindVertexArray(0);
     }
@@ -437,6 +434,9 @@ namespace WonderRabbitProject { namespace GLEW {
     {
       C::glBindVertexArray(vertex_arrays);
       C::glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
+      C::glVertexAttribPointer(
+        0, element_size, GL::GLenum(vertex_attribute), false, 0, 0
+      );
       C::glDrawArrays(GL::GLenum(TMODE::value), 0, vertices);
       C::glBindBuffer(GL_ARRAY_BUFFER, 0);
       //C::glBindVertexArray(0);
