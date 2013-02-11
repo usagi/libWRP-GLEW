@@ -61,19 +61,8 @@ namespace WonderRabbitProject { namespace GLEW {
   #include "./GLEW/USAGE.hpp"
   #include "./GLEW/MODE.hpp"
 
-  struct destruct_invoker
-  {
-    destruct_invoker(std::function<void()>&& f_)
-      : f(std::move(f_))
-    { }
-    destruct_invoker(const destruct_invoker&) = delete;
-    destruct_invoker(destruct_invoker&& t)
-      : destruct_invoker(std::move(t.f))
-    { t.cancel(); }
-    ~destruct_invoker(){ f(); }
-    inline void cancel(){ f = []{}; }
-    std::function<void()> f;
-  };
+  #include "./GLEW/basic_types.hpp"
+  #include "./GLEW/destruct_invoker.hpp"
 
   struct glew;
   struct program;
@@ -696,35 +685,158 @@ namespace WonderRabbitProject { namespace GLEW {
       WRP_GLEW_TEST_ERROR
     }
 
-#define WRP_TMP1(b,c) \
-    inline void uniform(GL::GLint location, GL::GL ## b value) \
-    { C::glUniform1 ## c (location, value); } \
-    inline void uniform(GL::GLint location, const std::array<GL::GL ## b, 1>& values) \
-    { uniform(location, values[0]); }
-#define WRP_TMP2(a,b,c) \
-    inline void uniform(GL::GLint location, const std::array<GL::GL ## b, a>& values)\
-    { C::glUniform ## a ## c ## v(location, a, values.data()); } \
-    template<size_t N> \
-    inline void uniform ## a (GL::GLint location, const std::array<GL::GL ## b, N>& values) \
-    { \
-      static_assert(N<= a, "must N<=" # a ); \
-      C::glUniform ## a ## c ## v(location, N, values.data()); \
-    }
-    WRP_TMP1(   float, f)
-    WRP_TMP2(2, float, f)
-    WRP_TMP2(3, float, f)
-    WRP_TMP2(4, float, f)
-    WRP_TMP1(   int, i)
-    WRP_TMP2(2, int, i)
-    WRP_TMP2(3, int, i)
-    WRP_TMP2(4, int, i)
-    WRP_TMP1(   uint, ui)
-    WRP_TMP2(2, uint, ui)
-    WRP_TMP2(3, uint, ui)
-    WRP_TMP2(4, uint, ui)
-#undef WRP_TMP2
-#undef WRP_TMP1
-
+    // float
+    inline void uniform(
+      GL::GLint location,
+      const GL::GLfloat value
+    ) const
+    { C::glUniform1f(location, value); }
+    
+    template<size_t N>
+    inline void uniform(
+      GL::GLint location,
+      const vec<vec<GL::GLfloat, 1>, N>& values
+    ) const
+    { C::glUniform1fv(location, N, values.data()->data()); }
+    
+    inline void uniform(
+      GL::GLint location,
+      const u_vec2<GL::GLfloat>& values
+    ) const
+    { C::glUniform2fv(location, 1, values.data()); }
+    
+    template<size_t N>
+    inline void uniform(
+      GL::GLint location,
+      const vec<u_vec2<GL::GLfloat>, N>& values
+    ) const
+    { C::glUniform2fv(location, N, values.data()->data()); }
+    
+    inline void uniform(
+      GL::GLint location,
+      const u_vec3<GL::GLfloat>& values
+    ) const
+    { C::glUniform3fv(location, 1, values.data()); }
+    
+    template<size_t N>
+    inline void uniform(
+      GL::GLint location,
+      const vec<u_vec3<GL::GLfloat>, N>& values
+    ) const
+    { C::glUniform3fv(location, N, values.data()->data()); }
+    
+    inline void uniform(
+      GL::GLint location,
+      const u_vec4<GL::GLfloat>& values
+    ) const
+    { C::glUniform4fv(location, 1, values.data()); }
+    
+    template<size_t N>
+    inline void uniform(
+      GL::GLint location,
+      const vec<u_vec4<GL::GLfloat>, N>& values
+    ) const
+    { C::glUniform4fv(location, N, values.data()->data()); }
+    
+    // int
+    inline void uniform(
+      GL::GLint location,
+      const GL::GLint value
+    ) const
+    { C::glUniform1i(location, value); }
+    
+    template<size_t N>
+    inline void uniform(
+      GL::GLint location,
+      const vec<vec<GL::GLint, 1>, N>& values
+    ) const
+    { C::glUniform1iv(location, N, values.data()->data()); }
+    
+    inline void uniform(
+      GL::GLint location,
+      const u_vec2<GL::GLint>& values
+    ) const
+    { C::glUniform2iv(location, 1, values.data()); }
+    
+    template<size_t N>
+    inline void uniform(
+      GL::GLint location,
+      const vec<u_vec2<GL::GLint>, N>& values
+    ) const
+    { C::glUniform2iv(location, N, values.data()->data()); }
+    
+    inline void uniform(
+      GL::GLint location,
+      const u_vec3<GL::GLint>& values
+    ) const
+    { C::glUniform3iv(location, 1, values.data()); }
+    
+    template<size_t N>
+    inline void uniform(
+      GL::GLint location,
+      const vec<u_vec3<GL::GLint>, N>& values
+    ) const
+    { C::glUniform3iv(location, N, values.data()->data()); }
+    
+    inline void uniform(
+      GL::GLint location,
+      const u_vec4<GL::GLint>& values
+    ) const
+    { C::glUniform4iv(location, 1, values.data()); }
+    
+    template<size_t N>
+    inline void uniform(
+      GL::GLint location,
+      const vec<u_vec4<GL::GLint>, N>& values
+    ) const
+    { C::glUniform4iv(location, N, values.data()->data()); }
+    
+    // uint
+    inline void uniform(
+      GL::GLint location,
+      const GL::GLuint value
+    ) const
+    { C::glUniform1i(location, value); }
+    
+    template<size_t N>
+    inline void uniform(
+      GL::GLint location,
+      const vec<vec<GL::GLuint, 1>, N>& values
+    ) const
+    { C::glUniform1uiv(location, N, values.data()->data()); }
+    
+    inline void uniform(
+      GL::GLint location,
+      const u_vec2<GL::GLuint>& values
+    ) const
+    { C::glUniform2uiv(location, 1, values.data()); }
+    
+    template<size_t N>
+    inline void uniform(
+      GL::GLint location,
+      const vec<u_vec2<GL::GLuint>, N>& values
+    ) const
+    { C::glUniform2uiv(location, N, values.data()->data()); }
+    
+    inline void uniform(
+      GL::GLint location,
+      const u_vec3<GL::GLuint>& values
+    ) const
+    { C::glUniform3uiv(location, 1, values.data()); }
+    
+    template<size_t N>
+    inline void uniform(
+      GL::GLint location,
+      const vec<u_vec3<GL::GLuint>, N>& values
+    ) const
+    { C::glUniform3uiv(location, N, values.data()->data()); }
+    
+    inline void uniform(
+      GL::GLint location,
+      const u_vec4<GL::GLuint>& values
+    ) const
+    { C::glUniform4uiv(location, 1, values.data()); }
+    
     template<class TMODE, class TMODEL>
     inline void invoke(const TMODEL& m) const
     {
