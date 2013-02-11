@@ -696,6 +696,35 @@ namespace WonderRabbitProject { namespace GLEW {
       WRP_GLEW_TEST_ERROR
     }
 
+#define WRP_TMP1(b,c) \
+    inline void uniform(GL::GLint location, GL::GL ## b value) \
+    { C::glUniform1 ## c (location, value); } \
+    inline void uniform(GL::GLint location, const std::array<GL::GL ## b, 1>& values) \
+    { uniform(location, values[0]); }
+#define WRP_TMP2(a,b,c) \
+    inline void uniform(GL::GLint location, const std::array<GL::GL ## b, a>& values)\
+    { C::glUniform ## a ## c ## v(location, a, values.data()); } \
+    template<size_t N> \
+    inline void uniform ## a (GL::GLint location, const std::array<GL::GL ## b, N>& values) \
+    { \
+      static_assert(N<= a, "must N<=" # a ); \
+      C::glUniform ## a ## c ## v(location, N, values.data()); \
+    }
+    WRP_TMP1(   float, f)
+    WRP_TMP2(2, float, f)
+    WRP_TMP2(3, float, f)
+    WRP_TMP2(4, float, f)
+    WRP_TMP1(   int, i)
+    WRP_TMP2(2, int, i)
+    WRP_TMP2(3, int, i)
+    WRP_TMP2(4, int, i)
+    WRP_TMP1(   uint, ui)
+    WRP_TMP2(2, uint, ui)
+    WRP_TMP2(3, uint, ui)
+    WRP_TMP2(4, uint, ui)
+#undef WRP_TMP2
+#undef WRP_TMP1
+
     template<class TMODE, class TMODEL>
     inline void invoke(const TMODEL& m) const
     {
