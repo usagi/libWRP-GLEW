@@ -1,12 +1,12 @@
 build_command    = g++
 include_path     = -Iinclude
 compile_options  = $include_path -std=c++11 -O3 -Wall -Werror
-link_options     = -lglog -lglew -lpthread
+link_options     = -lglog -lGLEW -lGL -lpthread
 int_directory    = sample
 out_directory    = bin
 
 rule build
-  command = $build_command $compile_options $link_options $in -o $out
+  command = $build_command $compile_options $in $link_options -o $out
 
 build $out_directory/00_glew-test : build $int_directory/00_glew-test.cxx
 
