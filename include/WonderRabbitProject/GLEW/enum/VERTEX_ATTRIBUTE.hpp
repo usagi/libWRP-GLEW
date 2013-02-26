@@ -57,3 +57,21 @@ std::string to_string(VERTEX_ATTRIBUTE v){
   }
 }
 
+template<class T> struct vertex_attribute_from_type final { };
+
+#define WRP_TMP(a,b) \
+template<> struct vertex_attribute_from_type <a> final {\
+  static constexpr VERTEX_ATTRIBUTE vertex_attribute = VERTEX_ATTRIBUTE::b;\
+};
+WRP_TMP(GL::GLbyte, INT8);
+WRP_TMP(GL::GLubyte, UINT8);
+WRP_TMP(GL::GLshort, INT16);
+WRP_TMP(GL::GLushort, UINT16);
+WRP_TMP(GL::GLint, INT32);
+WRP_TMP(GL::GLuint, UINT32);
+//WRP_TMP(GL::GLhalf, BINARY16);
+WRP_TMP(GL::GLfloat, BINARY32);
+WRP_TMP(GL::GLdouble, BINARY64);
+//WRP_TMP(GL::GLfixed, FIXED);
+#undef WRP_TMP
+

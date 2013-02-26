@@ -1,5 +1,7 @@
 #pragma once
 
+#include "./detail/model_invoke_vertex_attribute_pointer.hpp"
+
 struct model
 {
   friend glew;
@@ -10,50 +12,23 @@ protected:
 
 template
 <
-  class TELEMENT,
-  size_t TELEMENT_SIZE,
+  class TVERTEX,
   class TUSAGE,
   class TDEFAULT_INVOKE_MODE
 >
 struct model_v final : model
 {
   friend glew;
-  using element_type = TELEMENT;
-  static constexpr size_t element_size = TELEMENT_SIZE;
-  using data_type = std::vector<std::array<element_type ,element_size>>;
+  using vertex_type = TVERTEX;
+  using data_type = std::vector<vertex_type>;
   static constexpr USAGE usage = USAGE(TUSAGE::value);
   static constexpr MODE default_invoke_mode = TDEFAULT_INVOKE_MODE::value;
-private:
-  using va_candidates = boost::mpl::map
-  < boost::mpl::pair< GL::GLfloat , boost::mpl::int_<GL::GLenum(VERTEX_ATTRIBUTE::BINARY32)> >
-  , boost::mpl::pair< GL::GLdouble, boost::mpl::int_<GL::GLenum(VERTEX_ATTRIBUTE::BINARY64)> > 
-  , boost::mpl::pair< GL::GLbyte  , boost::mpl::int_<GL::GLenum(VERTEX_ATTRIBUTE::INT8    )> > 
-  , boost::mpl::pair< GL::GLubyte , boost::mpl::int_<GL::GLenum(VERTEX_ATTRIBUTE::UINT8   )> > 
-  , boost::mpl::pair< GL::GLshort , boost::mpl::int_<GL::GLenum(VERTEX_ATTRIBUTE::INT16   )> > 
-  , boost::mpl::pair< GL::GLushort, boost::mpl::int_<GL::GLenum(VERTEX_ATTRIBUTE::UINT16  )> > 
-  , boost::mpl::pair< GL::GLint   , boost::mpl::int_<GL::GLenum(VERTEX_ATTRIBUTE::INT32   )> > 
-  , boost::mpl::pair< GL::GLuint  , boost::mpl::int_<GL::GLenum(VERTEX_ATTRIBUTE::UINT32  )> > 
-  >;
-
-  using mpl_va_type = 
-    typename boost::mpl::second<
-      typename boost::mpl::deref<
-        typename boost::mpl::find_if<
-          va_candidates,
-          boost::is_same< element_type, boost::mpl::first<boost::mpl::_> >
-        >::type
-      >::type
-    >::type;
 public:
-  static constexpr VERTEX_ATTRIBUTE vertex_attribute
-    = VERTEX_ATTRIBUTE(mpl_va_type::value);
-    
   ~model_v() override
   {
     C::glDeleteBuffers(buffer_count, &vertex_buffer);
     C::glDeleteVertexArrays(buffer_count, &vertex_arrays);
   }
-
 private:
   static constexpr size_t buffer_count = 1;
   GL::GLuint vertex_buffer;
@@ -69,7 +44,7 @@ private:
     C::glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
     C::glBufferData(
       GL_ARRAY_BUFFER,
-      sizeof(element_type) * element_size * vertices,
+      vertex_type::size * vertices,
       data.data(),
       GL::GLenum(usage)
     );
@@ -82,9 +57,7 @@ private:
   {
     C::glBindVertexArray(vertex_arrays);
     C::glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
-    C::glVertexAttribPointer(
-      0, element_size, GL::GLenum(vertex_attribute), false, 0, 0
-    );
+    detail::model_invoke_vertex_attribute_pointer<vertex_type>::invoke();
     C::glDrawArrays(GL::GLenum(TMODE::value), 0, vertices);
     C::glBindBuffer(GL_ARRAY_BUFFER, 0);
     //C::glBindVertexArray(0);
@@ -96,47 +69,20 @@ private:
 
 template
 <
-  class TELEMENT,
-  size_t TELEMENT_SIZE,
+  class TVERTEX,
   class TUSAGE,
   class TDEFAULT_INVOKE_MODE
 >
 struct model_vi final : model
 {
   friend glew;
-  using element_type = TELEMENT;
-  static constexpr size_t element_size = TELEMENT_SIZE;
-  using data_vertices_type = std::vector<std::array<element_type ,element_size>>;
+  using vertex_type = TVERTEX;
+  using data_vertices_type = std::vector<vertex_type>;
   static constexpr USAGE usage = USAGE(TUSAGE::value);
   static constexpr MODE default_invoke_mode = TDEFAULT_INVOKE_MODE::value;
   using data_indices_element_type = GL::GLuint;
-  using data_indices_type
-    = std::vector<data_indices_element_type>;
-private:
-  using va_candidates = boost::mpl::map
-  < boost::mpl::pair< GL::GLfloat , boost::mpl::int_<GL::GLenum(VERTEX_ATTRIBUTE::BINARY32)> >
-  , boost::mpl::pair< GL::GLdouble, boost::mpl::int_<GL::GLenum(VERTEX_ATTRIBUTE::BINARY64)> > 
-  , boost::mpl::pair< GL::GLbyte  , boost::mpl::int_<GL::GLenum(VERTEX_ATTRIBUTE::INT8    )> > 
-  , boost::mpl::pair< GL::GLubyte , boost::mpl::int_<GL::GLenum(VERTEX_ATTRIBUTE::UINT8   )> > 
-  , boost::mpl::pair< GL::GLshort , boost::mpl::int_<GL::GLenum(VERTEX_ATTRIBUTE::INT16   )> > 
-  , boost::mpl::pair< GL::GLushort, boost::mpl::int_<GL::GLenum(VERTEX_ATTRIBUTE::UINT16  )> > 
-  , boost::mpl::pair< GL::GLint   , boost::mpl::int_<GL::GLenum(VERTEX_ATTRIBUTE::INT32   )> > 
-  , boost::mpl::pair< GL::GLuint  , boost::mpl::int_<GL::GLenum(VERTEX_ATTRIBUTE::UINT32  )> > 
-  >;
-
-  using mpl_va_type = 
-    typename boost::mpl::second<
-      typename boost::mpl::deref<
-        typename boost::mpl::find_if<
-          va_candidates,
-          boost::is_same< element_type, boost::mpl::first<boost::mpl::_> >
-        >::type
-      >::type
-    >::type;
+  using data_indices_type = std::vector<data_indices_element_type>;
 public:
-  static constexpr VERTEX_ATTRIBUTE vertex_attribute
-    = VERTEX_ATTRIBUTE(mpl_va_type::value);
-    
   ~model_vi() override
   {
     C::glDeleteBuffers(buffer_count, buffer.data());
@@ -162,19 +108,17 @@ private:
     C::glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer());
     C::glBufferData(
       GL_ARRAY_BUFFER,
-      sizeof(element_type) * element_size * num_of_vertices,
+      vertex_type::size * num_of_vertices,
       data_vertices.data(),
       GL::GLenum(usage)
     );
     C::glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, index_buffer());
-    L(INFO, "AAA");
     C::glBufferData(
       GL_ELEMENT_ARRAY_BUFFER,
       sizeof(data_indices_element_type) * num_of_indices,
       data_indices.data(),
       GL::GLenum(usage)
     ); 
-    L(INFO, "BBB");
     C::glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
     C::glBindBuffer(GL_ARRAY_BUFFER, 0);
   }
@@ -184,9 +128,7 @@ private:
   {
     C::glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer());
     C::glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, index_buffer());
-    C::glVertexAttribPointer(
-      0, element_size, GL::GLenum(vertex_attribute), false, 0, 0
-    );
+    detail::model_invoke_vertex_attribute_pointer<vertex_type>::invoke();
     C::glDrawElements(
       GL::GLenum(TMODE::value),
       num_of_indices,

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <stack>
 #include <array>
 #include <vector>
@@ -9,11 +11,7 @@
 #include <thread>
 #include <mutex>
 #include <iostream>
-
-#include <boost/type_traits.hpp>
-#include <boost/mpl/map.hpp>
-//#include <boost/mpl/filter_view.hpp>
-#include <boost/mpl/find_if.hpp>
+#include <utility>
 
 #ifndef WRP_NOT_DEFINE_L
   #ifndef L
@@ -66,6 +64,7 @@ namespace WonderRabbitProject { namespace GLEW {
 
   #include "./GLEW/shader.hpp"
   #include "./GLEW/program.hpp"
+  #include "./GLEW/vertex.hpp"
   #include "./GLEW/model.hpp"
 
   struct glew final
@@ -95,70 +94,76 @@ namespace WonderRabbitProject { namespace GLEW {
 
     template
     <
-      class TELEMENT_TYPE,
-      size_t TELEMENT_SIZE,
+      class TVERTEX,
       class TUSAGE,
       class TDEFAULT_INVOKE_MODE
     >
     inline model_vi
     <
-      TELEMENT_TYPE, TELEMENT_SIZE, TUSAGE, TDEFAULT_INVOKE_MODE
+      TVERTEX, TUSAGE, TDEFAULT_INVOKE_MODE
     >
     create_model(
-      std::vector<std::array<TELEMENT_TYPE, TELEMENT_SIZE>>&& data_vertices,
+      std::vector<TVERTEX>&& data_vertices,
       std::vector<GL::GLuint>&& data_indices
     ) const
     {
       L(INFO,  "--> WRP::GLEW::glew::create_model(vertices,indices)");
       return model_vi
-        <TELEMENT_TYPE, TELEMENT_SIZE, TUSAGE, TDEFAULT_INVOKE_MODE>
+        <TVERTEX, TUSAGE, TDEFAULT_INVOKE_MODE>
         ( std::move(data_vertices), std::move(data_indices) );
     }
     
-    template < class TELEMENT_TYPE, size_t TELEMENT_SIZE, class TUSAGE>
-    inline model_vi< TELEMENT_TYPE, TELEMENT_SIZE, TUSAGE, mode_points >
+    template < class TVERTEX, class TUSAGE>
+    inline model_vi< TVERTEX, TUSAGE, mode_points >
     create_model(
-      std::vector<std::array<TELEMENT_TYPE, TELEMENT_SIZE>>&& data_vertices,
-      std::vector<std::array<GL::GLuint, 2>>&& data_indices
+      std::vector<TVERTEX>&& data_vertices,
+      std::vector<GL::GLuint>&& data_indices
     ) const
     {
       return create_model
-        <TELEMENT_TYPE, TELEMENT_SIZE, TUSAGE, mode_points>
+        <TVERTEX, TUSAGE, mode_points>
         (std::move(data_vertices), std::move(data_indices));
     }
 
-    template < class TELEMENT_TYPE, size_t TELEMENT_SIZE>
-    inline model_vi< TELEMENT_TYPE, TELEMENT_SIZE, usage_static_draw, mode_points >
+    template <class TVERTEX>
+    inline model_vi< TVERTEX, usage_static_draw, mode_points >
     create_model(
-      std::vector<std::array<TELEMENT_TYPE, TELEMENT_SIZE>>&& data_vertices,
-      std::vector<std::array<GL::GLuint, 2>>&& data_indices
+      std::vector<TVERTEX>&& data_vertices,
+      std::vector<GL::GLuint>&& data_indices
     ) const
     {
       return create_model
-        <TELEMENT_TYPE, TELEMENT_SIZE, usage_static_draw>
+        <TVERTEX, usage_static_draw>
         (std::move(data_vertices), std::move(data_indices));
     }
     
     template
     <
-      class TELEMENT_TYPE,
-      size_t TELEMENT_SIZE,
+      class TVERTEX,
       class TUSAGE,
       class TDEFAULT_INVOKE_MODE
     >
     inline model_v
     <
-      TELEMENT_TYPE, TELEMENT_SIZE, TUSAGE, TDEFAULT_INVOKE_MODE
+      TVERTEX, TUSAGE, TDEFAULT_INVOKE_MODE
     >
     create_model(
-      std::vector<std::array<TELEMENT_TYPE, TELEMENT_SIZE>>&& data
+      std::vector<TVERTEX>&& data
     ) const
     {
       L(INFO,  "--> WRP::GLEW::glew::create_model");
       return model_v
-        <TELEMENT_TYPE, TELEMENT_SIZE, TUSAGE, TDEFAULT_INVOKE_MODE>
+        <TVERTEX, TUSAGE, TDEFAULT_INVOKE_MODE>
         (std::move(data));
     }
+
+    /*
+    template<class TS ...>
+    inline texture<> texture(std::tuple<,>, TS ... ts)
+    {
+      return texture_();
+    }
+    */
 
     inline destruct_invoker
     enable_vertex_attribute(GL::GLuint v)
@@ -185,30 +190,30 @@ namespace WonderRabbitProject { namespace GLEW {
       };
     }
 
-    template < class TELEMENT_TYPE, size_t TELEMENT_SIZE, class TUSAGE>
-    inline model_v< TELEMENT_TYPE, TELEMENT_SIZE, TUSAGE, mode_points >
-    create_model( std::vector<std::array<TELEMENT_TYPE, TELEMENT_SIZE>>&& data) const
+    template < class TVERTEX, class TUSAGE>
+    inline model_v< TVERTEX, TUSAGE, mode_points >
+    create_model( std::vector<TVERTEX>&& data) const
     {
       return create_model
-        <TELEMENT_TYPE, TELEMENT_SIZE, TUSAGE, mode_points>(std::move(data));
+        <TVERTEX, TUSAGE, mode_points>(std::move(data));
     }
 
-    template < class TELEMENT_TYPE, size_t TELEMENT_SIZE>
-    inline model_v< TELEMENT_TYPE, TELEMENT_SIZE, usage_static_draw, mode_points >
-    create_model( std::vector<std::array<TELEMENT_TYPE, TELEMENT_SIZE>>&& data) const
+    template < class TVERTEX>
+    inline model_v< TVERTEX, usage_static_draw, mode_points >
+    create_model( std::vector<TVERTEX>&& data) const
     {
       return create_model
-        <TELEMENT_TYPE, TELEMENT_SIZE, usage_static_draw>(std::move(data));
+        <TVERTEX, usage_static_draw>(std::move(data));
     }
 
     inline void use_program(const program& p) const
     {
-      L(INFO,
-        "--> WRP::GLEW::glew::use_program; program"
-        "[" << p.program_ << "] (program object address is " << &p << ")"
-      );
+      //L(INFO,
+      //  "--> WRP::GLEW::glew::use_program; program"
+      //  "[" << p.program_ << "] (program object address is " << &p << ")"
+      //);
       C::glUseProgram(p.program_);
-      WRP_GLEW_TEST_ERROR
+      //WRP_GLEW_TEST_ERROR
     }
 
     // float
