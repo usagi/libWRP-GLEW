@@ -40,6 +40,7 @@ namespace detail {
     static inline void invoke()
     {
       C::glVertexAttribPointer(index, elements, type, normalized, size, offset);
+      C::glEnableVertexAttribArray(index);
       model_invoke_vertex_attribute_pointer_<next, invoke_next, vertex_type>::invoke();
     }
   };

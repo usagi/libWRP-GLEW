@@ -46,6 +46,7 @@ struct program
       "[" << index << "]:" << name
     );
     C::glBindAttribLocation(program_, index, name.data());
+    
   }
   
   template<class ... TS>
@@ -99,8 +100,15 @@ struct program
       L(INFO, "succeed");
     }
   }
+
+  inline GL::GLint active_attributes() const
+  {
+    GL::GLint r;
+    GLEW::C::glGetProgramiv(program_, GL_ACTIVE_ATTRIBUTES, &r);
+    return r;
+  }
   
-  inline GL::GLuint where_bind_vs(std::string&& s) const
+  inline GL::GLuint where_bind_vs(const std::string& s) const
   {
     auto r = C::glGetAttribLocation(program_, s.data());
     if( r == -1 )
@@ -113,7 +121,7 @@ struct program
     return r;
   }
 
-  inline GL::GLuint where_bind_fs(std::string&& s) const
+  inline GL::GLuint where_bind_fs(const std::string& s) const
   {
     auto r = C::glGetFragDataLocation(program_, s.data());
     if( r == -1 )
