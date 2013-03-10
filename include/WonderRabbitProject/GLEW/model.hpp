@@ -6,6 +6,27 @@ struct model
 {
   friend glew;
   virtual ~model() { }
+
+  // ToDo: template parametrize
+  // ToDo: overload the other view
+  void texture_2d(const GL::GLuint n, const boost::gil::rgb8_view_t& v) const
+  {
+    C::glBindTexture(GL_TEXTURE_2D, n);
+    
+    // ToDo: template parametrize
+    C::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    C::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    C::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+    C::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+    
+    C::glTexImage2D(
+      GL_TEXTURE_2D, 0, GL_RGB,
+      v.width(), v.height(), 0,
+      GL_RGB, GL::GLenum(GLEW::VERTEX_ATTRIBUTE::UINT8),
+      boost::gil::interleaved_view_get_raw_data(v)
+    );
+  }
+
 protected:
   virtual void invoke() const = 0;
 };

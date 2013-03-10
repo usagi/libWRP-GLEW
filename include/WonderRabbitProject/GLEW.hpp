@@ -13,6 +13,8 @@
 #include <iostream>
 #include <utility>
 
+#include <boost/gil/gil_all.hpp>
+
 #ifndef WRP_NOT_DEFINE_L
   #ifndef L
     #define L(a,b) 
@@ -157,14 +159,6 @@ namespace WonderRabbitProject { namespace GLEW {
         (std::move(data));
     }
 
-    /*
-    template<class TS ...>
-    inline texture<> texture(std::tuple<,>, TS ... ts)
-    {
-      return texture_();
-    }
-    */
-
     inline destruct_invoker
     enable_vertex_attribute(GL::GLuint v)
     {
@@ -268,6 +262,19 @@ namespace WonderRabbitProject { namespace GLEW {
       const vec<u_vec4<GL::GLfloat>, N>& values
     ) const
     { C::glUniform4fv(location, N, values.data()->data()); }
+    
+    inline void uniform(
+      GL::GLint location,
+      const u_matrix44<GL::GLfloat>& values
+    ) const
+    { C::glUniformMatrix4fv(location, 1, false, values.data()); }
+    
+    template<size_t N>
+    inline void uniform(
+      GL::GLint location,
+      const vec<u_matrix44<GL::GLfloat>, N>& values
+    ) const
+    { C::glUniformMatrix4fv(location, N, false, values.data()->data()); }
     
     // int
     inline void uniform(

@@ -29,7 +29,7 @@ struct shader
     finalizer_ = []{};
   }
   
-  inline void source(std::string&& v)
+  inline void source(const std::string& v)
   {
     L(INFO, "WRP::GLEW::shader<"
       << to_string(shader_type)
@@ -53,6 +53,18 @@ struct shader
 
   inline const std::string& source() const
   { return source_; }
+
+  inline void compile(const std::string& v)
+  {
+    source(v);
+    compile();
+  }
+
+  inline void compile(std::istream&& s)
+  {
+    source(std::move(s));
+    compile();
+  }
 
   inline void compile() const
   {
