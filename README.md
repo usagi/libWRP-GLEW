@@ -27,7 +27,7 @@ The sample is in the './sample' directory.
 ### Optional
 
 * [google-glog](https://code.google.com/p/google-glog/)
-* [Ninja](http://martine.github.com/ninja/)
+* [Ninja](https://ninja-build.org/)
 
 ## Document
 
